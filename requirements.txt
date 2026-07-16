@@ -2,4 +2,4 @@ pandas
 pyarrow
 pytest
 ruff
-python-dotenv
+python-dotenvboto3
