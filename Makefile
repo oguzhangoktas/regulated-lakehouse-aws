@@ -4,6 +4,6 @@ up:
 down:
 	docker compose down
 test:
-	pytest -q
+	python -m pytest -q
 lint:
-	ruff check .
+	python -m ruff check .
