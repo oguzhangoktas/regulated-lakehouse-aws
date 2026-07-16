@@ -1,0 +1,45 @@
+# Data contract: exposure-level input consumed by the (vendor) credit-risk RWA engine.
+# The engine is a black box in reality; this contract is the boundary we own.
+contract: credit_risk_exposure_input
+version: 1.0.0
+producer: domains/credit_risk
+consumer: vendor RWA engine (mocked in this project)
+grain: one row per (exposure_id, reporting_date)
+frequency: monthly, on the month-end snapshot
+scope: outstanding_amount > 0 OR status = defaulted   # see ADR-003
+
+fields:
+  - {name: reporting_date,     type: date,           required: true,  note: "month-end as-of date, NOT the run date"}
+  - {name: exposure_id,        type: string,         required: true}
+  - {name: customer_id,        type: string,         required: true,  pii: pseudonymised}
+  - {name: exposure_class,     type: string,         required: true,  allowed: [retail_other]}
+  - {name: original_amount,    type: decimal(18,2),  required: true,  min: 0}
+  - {name: outstanding_amount, type: decimal(18,2),  required: true,  min: 0, note: "EAD basis, drawn balance as of reporting_date"}
+  - {name: undrawn_amount,     type: decimal(18,2),  required: true,  min: 0, note: "CCF input; 0 for term loans"}
+  - {name: currency,           type: string,         required: true,  allowed: [USD]}
+  - {name: rating_grade,       type: string,         required: true,  allowed: [A,B,C,D,E,F,G]}
+  - {name: rating_subgrade,    type: string,         required: true}
+  - {name: origination_date,   type: date,           required: true}
+  - {name: maturity_date,      type: date,           required: true}
+  - {name: term_months,        type: int,            required: true,  allowed: [36, 60]}
+  - {name: interest_rate,      type: decimal(6,4),   required: true}
+  - {name: status,             type: string,         required: true,  allowed: [performing, past_due, defaulted]}
+  - {name: days_past_due,      type: int,            required: true,  min: 0}
+  - {name: default_flag,       type: boolean,        required: true}
+  - {name: default_date,       type: date,           required: false}
+  - {name: provision_amount,   type: decimal(18,2),  required: true,  min: 0, note: "specific provisions; netted for defaulted exposures"}
+  - {name: collateral_flag,    type: boolean,        required: true,  note: "false for unsecured consumer lending"}
+  - {name: collateral_value,   type: decimal(18,2),  required: true,  min: 0}
+  - {name: purpose,            type: string,         required: true}
+  - {name: region,             type: string,         required: true}
+
+quality_gates:
+  - no_duplicates: [exposure_id, reporting_date]
+  - reporting_date_must_be_month_end: true
+  - outstanding_le_original: "outstanding_amount <= original_amount * 1.1"   # tolerance: capitalised interest/fees
+  - defaulted_consistency: "status = defaulted implies default_flag = true"
+  - past_due_consistency: "status = past_due implies days_past_due > 0"
+  - row_count_vs_prior_month_within_pct: 15
+  - no_nulls_in_required_fields: true
+
+on_violation: quarantine   # never silently coerce; a wrong number is worse than a late one
