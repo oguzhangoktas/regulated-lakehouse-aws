@@ -5,12 +5,10 @@ performing/past due/defaulted split, NPL ratio and provisions. A book whose
 defaulted population only ever grows indicates the exit path is not firing.
 """
 import sys
-from pathlib import Path
 
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent))
-from simulate_ods_snapshots import build_snapshot  # noqa: E402
+from dataplatform.ingestion.simulate_ods_snapshots import build_snapshot
 
 
 def check(master_path: str, start: str, end: str) -> None:

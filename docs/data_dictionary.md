@@ -1,7 +1,7 @@
 # Source data: LendingClub accepted loans (2007-2018Q4)
 
 2,260,701 rows, 151 columns, 1.6GB CSV. Reduced to the 27 columns used
-(platform/ingestion/build_loan_master.py) and written as Parquet at 127MB.
+(dataplatform/ingestion/build_loan_master.py) and written as Parquet at 127MB.
 
 ## Columns used
 
@@ -59,4 +59,4 @@ that month have not had time to accrue days past due, so the past due population
 
 Sampling: the file is ordered by issue date. A head sample covers only the earliest
 vintages and reports distributions that do not hold for the file
-(platform/profiling/scan_credit.py reads it in full for this reason).
+(dataplatform/profiling/scan_credit.py reads it in full for this reason).

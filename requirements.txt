@@ -1,5 +1,11 @@
-pandas
-pyarrow
-pytest
-ruff
-python-dotenvboto3
+# Pinned to the AWS Glue 5.1 runtime: Spark 3.5.6, Python 3.11, Delta Lake 3.3.2.
+# Jobs are developed locally and run on Glue, so the local runtime matches the
+# target rather than tracking latest.
+pyspark==3.5.6
+delta-spark==3.3.2
+pandas==2.2.3
+pyarrow==17.0.0
+boto3==1.35.36
+pytest==8.3.3
+ruff==0.6.9
+python-dotenv==1.0.1
