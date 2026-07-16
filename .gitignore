@@ -7,3 +7,7 @@ data/
 .DS_Store
 dbt/target/
 dbt/logs/
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
