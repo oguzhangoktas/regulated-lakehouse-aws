@@ -1,16 +1,39 @@
 name: CI
+
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      # Python and Java match the Glue 5.1 runtime (ADR-007). Spark needs the JVM:
+      # the tests start a session.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
+          cache: pip
+
+      # Iceberg is resolved by Spark at session start, not by pip. Caching the Ivy
+      # directory avoids fetching it on every run.
+      - name: Cache Spark jars
+        uses: actions/cache@v4
+        with:
+          path: ~/.ivy2
+          key: ivy-${{ hashFiles('dataplatform/lakehouse/session.py') }}
+
+      - run: pip install -r requirements.txt -e .
+
       - run: ruff check .
+
       - run: pytest -q
