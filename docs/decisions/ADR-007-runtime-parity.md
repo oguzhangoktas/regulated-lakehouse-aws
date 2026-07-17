@@ -3,14 +3,15 @@
 ## Context
 Spark jobs are developed locally and run on AWS Glue. Installing latest produced
 PySpark 4.2 on Python 3.14 locally, against a Glue 5.1 runtime of Spark 3.5.6,
-Python 3.11, Scala 2.12.18 and Delta Lake 3.3.2. CI was separately running 3.12.
+Python 3.11 and Scala 2.12.18. CI was separately running 3.12.
 
 A major Spark version gap means code can pass locally and fail on Glue, and the
 failure surfaces after deployment rather than in test.
 
 ## Decision
-Local environment, CI and Glue all run Python 3.11 with Spark 3.5.6 and Delta 3.3.2,
-pinned in requirements.txt. Java 17 matches the Glue runtime.
+Local environment, CI and Glue all run Python 3.11, Spark 3.5.6 and Java 17, matching
+Glue 5.1. Python dependencies are pinned in requirements.txt; the Iceberg runtime is a
+Spark jar and is pinned at the session instead (ADR-008).
 
 The package is installed in editable mode from pyproject.toml so modules import by
 path rather than through sys.path manipulation.

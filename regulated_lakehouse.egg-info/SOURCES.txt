@@ -8,6 +8,7 @@ dataplatform/ingestion/check_snapshots.py
 dataplatform/ingestion/load_bronze.py
 dataplatform/ingestion/simulate_ods_snapshots.py
 dataplatform/lakehouse/__init__.py
+dataplatform/lakehouse/session.py
 dataplatform/observability/__init__.py
 dataplatform/profiling/__init__.py
 dataplatform/profiling/profile_dataset.py
@@ -16,10 +17,13 @@ dataplatform/quality/__init__.py
 dataplatform/reference/__init__.py
 domains/__init__.py
 domains/credit_risk/__init__.py
+domains/credit_risk/silver_exposure.py
+domains/credit_risk/silver_exposure_job.py
 domains/market_risk/__init__.py
 domains/txn_monitoring/__init__.py
 regulated_lakehouse.egg-info/PKG-INFO
 regulated_lakehouse.egg-info/SOURCES.txt
 regulated_lakehouse.egg-info/dependency_links.txt
 regulated_lakehouse.egg-info/top_level.txt
-tests/test_smoke.py
+tests/test_session.py
+tests/test_silver_exposure.py

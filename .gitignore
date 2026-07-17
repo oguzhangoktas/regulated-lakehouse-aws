@@ -11,3 +11,4 @@ dbt/logs/
 *.tfstate
 *.tfstate.*
 crash.log
+dist/
