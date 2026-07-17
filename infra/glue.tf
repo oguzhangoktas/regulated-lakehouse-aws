@@ -16,16 +16,20 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
 resource "aws_s3_bucket_lifecycle_configuration" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
 
-  rule {
-    id     = "expire-scratch"
-    status = "Enabled"
+  dynamic "rule" {
+    for_each = ["temp/", "athena-results/"]
 
-    filter {
-      prefix = "temp/"
-    }
+    content {
+      id     = "expire-${trimsuffix(rule.value, "/")}"
+      status = "Enabled"
 
-    expiration {
-      days = 7
+      filter {
+        prefix = rule.value
+      }
+
+      expiration {
+        days = 7
+      }
     }
   }
 
@@ -196,5 +200,24 @@ resource "aws_glue_job" "silver_exposure" {
     "--bronze_root"      = "s3://${aws_s3_bucket.layer["bronze"].id}"
     "--table"            = "lakehouse.silver_credit_risk.exposure"
     "--quarantine_table" = "lakehouse.quarantine_credit_risk.exposure"
+  }
+}
+
+# Athena writes results and metadata to S3. They are derived and re-runnable, so they
+# live in artifacts under a lifecycle rule rather than in a lakehouse layer.
+resource "aws_athena_workgroup" "main" {
+  name = var.project
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = true
+
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.artifacts.id}/athena-results/"
+
+      encryption_configuration {
+        encryption_option = "SSE_S3"
+      }
+    }
   }
 }
