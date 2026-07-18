@@ -155,6 +155,28 @@ resource "aws_iam_role_policy" "glue_job" {
   policy = data.aws_iam_policy_document.glue_job.json
 }
 
+locals {
+  glue_conf = join(" --conf ", [
+    "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+    "spark.sql.catalog.lakehouse=org.apache.iceberg.spark.SparkCatalog",
+    "spark.sql.catalog.lakehouse.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
+    "spark.sql.catalog.lakehouse.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
+    "spark.sql.catalog.lakehouse.warehouse=s3://${aws_s3_bucket.artifacts.id}/warehouse/",
+  ])
+
+  glue_defaults = {
+    "--datalake-formats" = "iceberg"
+
+    # Glue's Python environment does not carry PyYAML; the contract loader needs it.
+    "--additional-python-modules" = "pyyaml==6.0.2"
+
+    "--extra-py-files"                   = "s3://${aws_s3_bucket.artifacts.id}/code/regulated_lakehouse-${var.wheel_version}-py3-none-any.whl"
+    "--TempDir"                          = "s3://${aws_s3_bucket.artifacts.id}/temp/"
+    "--enable-metrics"                   = "true"
+    "--enable-continuous-cloudwatch-log" = "true"
+  }
+}
+
 resource "aws_glue_job" "silver_exposure" {
   name              = "${var.project}-silver-exposure"
   role_arn          = aws_iam_role.glue_job.arn
@@ -175,32 +197,12 @@ resource "aws_glue_job" "silver_exposure" {
     max_concurrent_runs = 4
   }
 
-  default_arguments = {
-    # Glue carries the Iceberg runtime; this loads it (ADR-008).
-    "--datalake-formats" = "iceberg"
-
-    "--extra-py-files" = "s3://${aws_s3_bucket.artifacts.id}/code/regulated_lakehouse-${var.wheel_version}-py3-none-any.whl"
-    "--TempDir"        = "s3://${aws_s3_bucket.artifacts.id}/temp/"
-
-    "--enable-metrics"                   = "true"
-    "--enable-continuous-cloudwatch-log" = "true"
-
-    # The catalog is named `lakehouse` as it is locally (ADR-007); here it is backed by
-    # the Glue Data Catalog. Table locations come from each database's location_uri, so
-    # a table lands in its layer's bucket (ADR-006) and this warehouse is only a
-    # fallback for databases without one.
-    "--conf" = join(" --conf ", [
-      "spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-      "spark.sql.catalog.lakehouse=org.apache.iceberg.spark.SparkCatalog",
-      "spark.sql.catalog.lakehouse.catalog-impl=org.apache.iceberg.aws.glue.GlueCatalog",
-      "spark.sql.catalog.lakehouse.io-impl=org.apache.iceberg.aws.s3.S3FileIO",
-      "spark.sql.catalog.lakehouse.warehouse=s3://${aws_s3_bucket.artifacts.id}/warehouse/",
-    ])
-
+  default_arguments = merge(local.glue_defaults, {
+    "--conf"             = local.glue_conf
     "--bronze_root"      = "s3://${aws_s3_bucket.layer["bronze"].id}"
     "--table"            = "lakehouse.silver_credit_risk.exposure"
     "--quarantine_table" = "lakehouse.quarantine_credit_risk.exposure"
-  }
+  })
 }
 
 # Athena writes results and metadata to S3. They are derived and re-runnable, so they
@@ -220,4 +222,30 @@ resource "aws_athena_workgroup" "main" {
       }
     }
   }
+}
+
+resource "aws_glue_job" "gold_engine_input" {
+  name              = "${var.project}-gold-engine-input"
+  role_arn          = aws_iam_role.glue_job.arn
+  glue_version      = "5.1"
+  worker_type       = "G.1X"
+  number_of_workers = 2
+  timeout           = 20
+
+  command {
+    name            = "glueetl"
+    python_version  = "3"
+    script_location = "s3://${aws_s3_bucket.artifacts.id}/code/gold_engine_input.py"
+  }
+
+  execution_property {
+    max_concurrent_runs = 4
+  }
+
+  default_arguments = merge(local.glue_defaults, {
+    "--conf"             = local.glue_conf
+    "--silver_table"     = "lakehouse.silver_credit_risk.exposure"
+    "--gold_table"       = "lakehouse.gold_credit_risk.engine_input"
+    "--quarantine_table" = "lakehouse.quarantine_credit_risk.engine_input"
+  })
 }

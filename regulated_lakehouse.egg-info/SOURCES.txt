@@ -2,6 +2,8 @@ README.md
 pyproject.toml
 dataplatform/__init__.py
 dataplatform/contracts/__init__.py
+dataplatform/contracts/contract.py
+dataplatform/contracts/credit_risk_exposure_input.yaml
 dataplatform/ingestion/__init__.py
 dataplatform/ingestion/build_loan_master.py
 dataplatform/ingestion/check_snapshots.py
@@ -17,6 +19,8 @@ dataplatform/quality/__init__.py
 dataplatform/reference/__init__.py
 domains/__init__.py
 domains/credit_risk/__init__.py
+domains/credit_risk/gold_engine_input.py
+domains/credit_risk/gold_engine_input_job.py
 domains/credit_risk/silver_exposure.py
 domains/credit_risk/silver_exposure_job.py
 domains/market_risk/__init__.py
@@ -25,5 +29,7 @@ regulated_lakehouse.egg-info/PKG-INFO
 regulated_lakehouse.egg-info/SOURCES.txt
 regulated_lakehouse.egg-info/dependency_links.txt
 regulated_lakehouse.egg-info/top_level.txt
+tests/test_contract.py
+tests/test_gold_engine_input.py
 tests/test_session.py
 tests/test_silver_exposure.py

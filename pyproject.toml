@@ -12,3 +12,6 @@ include = ["dataplatform*", "domains*"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.setuptools.package-data]
+"dataplatform.contracts" = ["*.yaml"]

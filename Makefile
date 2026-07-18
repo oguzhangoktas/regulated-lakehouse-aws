@@ -12,5 +12,5 @@ package:
 	python -m build --wheel -q
 	$(eval BUCKET := $(shell cd infra && terraform output -raw artifacts_bucket))
 	aws s3 cp --quiet dist/*.whl s3://$(BUCKET)/code/
-	aws s3 cp --quiet glue/jobs/silver_exposure.py s3://$(BUCKET)/code/
+	aws s3 cp --quiet --recursive glue/jobs/ s3://$(BUCKET)/code/ --exclude '*' --include '*.py'
 	@echo "uploaded to s3://$(BUCKET)/code/"
