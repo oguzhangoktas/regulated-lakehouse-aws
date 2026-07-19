@@ -1,0 +1,28 @@
+# Exposure-level RWA returned by the engine and taken back for reconciliation and
+# reporting. The engine produces the numbers; this contract is what the platform
+# checks before trusting them.
+contract: credit_risk_rwa_output
+version: 1.0.0
+producer: vendor RWA engine
+consumer: domains/credit_risk reporting
+grain: [exposure_id, reporting_date]
+
+fields:
+  - {name: reporting_date, type: date, required: true}
+  - {name: exposure_id, type: string, required: true}
+  - {name: customer_id, type: string, required: true, pii: pseudonymised}
+  - {name: rating_grade, type: string, required: true, allowed: [A, B, C, D, E, F, G]}
+  - {name: status, type: string, required: true, allowed: [performing, past_due, defaulted]}
+  - {name: ead, type: decimal(18,2), required: true, min: 0}
+  - {name: risk_weight, type: decimal(6,4), required: true, min: 0}
+  - {name: rwa, type: decimal(18,2), required: true, min: 0}
+  - {name: capital_required, type: decimal(18,2), required: true, min: 0}
+
+row_rules:
+  rwa_is_ead_times_weight: abs(rwa - ead * risk_weight) <= 1
+  capital_is_eight_percent: abs(capital_required - rwa * 0.08) <= 1
+  ead_not_above_outstanding_semantics: rwa >= 0
+
+dataset_assertions:
+  unique_grain: true
+  max_quarantine_pct: 0.0

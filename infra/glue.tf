@@ -249,3 +249,29 @@ resource "aws_glue_job" "gold_engine_input" {
     "--quarantine_table" = "lakehouse.quarantine_credit_risk.engine_input"
   })
 }
+
+resource "aws_glue_job" "rwa_output" {
+  name              = "${var.project}-rwa-output"
+  role_arn          = aws_iam_role.glue_job.arn
+  glue_version      = "5.1"
+  worker_type       = "G.1X"
+  number_of_workers = 2
+  timeout           = 20
+
+  command {
+    name            = "glueetl"
+    python_version  = "3"
+    script_location = "s3://${aws_s3_bucket.artifacts.id}/code/rwa_output.py"
+  }
+
+  execution_property {
+    max_concurrent_runs = 4
+  }
+
+  default_arguments = merge(local.glue_defaults, {
+    "--conf"               = local.glue_conf
+    "--engine_input_table" = "lakehouse.gold_credit_risk.engine_input"
+    "--output_table"       = "lakehouse.gold_credit_risk.rwa_output"
+    "--quarantine_table"   = "lakehouse.quarantine_credit_risk.rwa_output"
+  })
+}
