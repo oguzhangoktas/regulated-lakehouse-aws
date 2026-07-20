@@ -12,3 +12,5 @@ dbt/logs/
 *.tfstate.*
 crash.log
 dist/
+build/
+*.egg-info/

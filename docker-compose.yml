@@ -9,5 +9,39 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "dev"]
+      interval: 5s
+      retries: 5
+
+  airflow:
+    image: apache/airflow:2.10.3-python3.11
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://dev:dev@postgres:5432/airflow
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      # Job names and table names the DAG needs, passed as env rather than hardcoded.
+      OGLH_REGION: eu-central-1
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+    command: >
+      bash -c "
+      pip install --quiet apache-airflow-providers-amazon==8.28.0 &&
+      airflow db migrate &&
+      airflow users create --username admin --password admin
+        --firstname a --lastname a --role Admin --email a@a.com 2>/dev/null;
+      airflow standalone
+      "
+
 volumes:
   pgdata:
+  airflow-logs:

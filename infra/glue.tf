@@ -275,3 +275,36 @@ resource "aws_glue_job" "rwa_output" {
     "--quarantine_table"   = "lakehouse.quarantine_credit_risk.rwa_output"
   })
 }
+
+# Airflow runs locally and triggers Glue. It gets its own credentials scoped to
+# starting and watching jobs, nothing else. Job execution uses the Glue role above;
+# this identity only orchestrates.
+resource "aws_iam_user" "airflow" {
+  name = "${var.project}-airflow"
+}
+
+resource "aws_iam_access_key" "airflow" {
+  user = aws_iam_user.airflow.name
+}
+
+data "aws_iam_policy_document" "airflow" {
+  statement {
+    sid = "TriggerAndWatchGlue"
+    actions = [
+      "glue:StartJobRun",
+      "glue:GetJob",
+      "glue:GetJobRun",
+      "glue:GetJobRuns",
+      "glue:BatchStopJobRun",
+    ]
+    resources = [
+      "arn:aws:glue:${var.region}:${local.suffix}:job/${var.project}-*",
+    ]
+  }
+}
+
+resource "aws_iam_user_policy" "airflow" {
+  name   = "${var.project}-airflow"
+  user   = aws_iam_user.airflow.name
+  policy = data.aws_iam_policy_document.airflow.json
+}

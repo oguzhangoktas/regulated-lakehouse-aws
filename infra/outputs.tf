@@ -12,3 +12,13 @@ output "glue_job_role" {
   description = "Role assumed by Glue jobs."
   value       = aws_iam_role.glue_job.arn
 }
+
+output "airflow_access_key_id" {
+  description = "Access key for the local Airflow's AWS connection."
+  value       = aws_iam_access_key.airflow.id
+}
+
+output "airflow_secret_access_key" {
+  value     = aws_iam_access_key.airflow.secret
+  sensitive = true
+}
