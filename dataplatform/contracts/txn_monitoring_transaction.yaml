@@ -1,0 +1,38 @@
+# Transactions entering the monitoring pipeline. This is the boundary the platform
+# validates before any detection rule runs: a malformed transaction must not reach
+# the rules, or an alert would be meaningless.
+contract: txn_monitoring_transaction
+version: 1.0.0
+producer: transaction stream (Kafka)
+consumer: domains/txn_monitoring detection
+grain: [name_orig, step, kafka_offset]
+
+fields:
+  - {name: step, type: int, required: true, min: 1}
+  - name: type
+    type: string
+    required: true
+    allowed: [PAYMENT, TRANSFER, CASH_OUT, CASH_IN, DEBIT]
+  - {name: amount, type: decimal(18,2), required: true, min: 0}
+  - {name: name_orig, type: string, required: true}
+  - {name: old_balance_orig, type: decimal(18,2), required: true, min: 0}
+  - {name: new_balance_orig, type: decimal(18,2), required: true, min: 0}
+  - {name: name_dest, type: string, required: true}
+  - {name: old_balance_dest, type: decimal(18,2), required: true, min: 0}
+  - {name: new_balance_dest, type: decimal(18,2), required: true, min: 0}
+  - {name: is_fraud, type: int, required: true, allowed: [0, 1]}
+
+# Evaluated per transaction. A transaction failing any of these is quarantined and
+# never reaches the detection rules.
+row_rules:
+  amount_positive: amount > 0
+  known_party: name_orig IS NOT NULL AND name_dest IS NOT NULL
+  # Origin balance must move consistently with the amount for a debit-side type.
+  # Tolerance absorbs the float noise present in the source.
+  debit_balance_consistent: >
+    type NOT IN ('TRANSFER', 'CASH_OUT', 'DEBIT', 'PAYMENT')
+    OR abs(old_balance_orig - new_balance_orig - amount) <= 1
+    OR new_balance_orig = 0
+
+dataset_assertions:
+  max_quarantine_pct: 5.0
