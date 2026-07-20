@@ -8,7 +8,7 @@ month's last calendar day, matching the month-end snapshots in the source. catch
 backfills each month in order, one run at a time, since the jobs write Iceberg tables
 partitioned by reporting date and concurrent runs on one partition would collide.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pendulum
 from airflow import DAG
