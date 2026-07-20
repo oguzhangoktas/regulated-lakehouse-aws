@@ -50,14 +50,21 @@ def run(path: str, rate: int, limit: int | None) -> None:
             "new_balance_dest": float(row.newbalanceDest),
             "is_fraud": int(row.isFraud),
         }
-        producer.produce(TOPIC, key=row.nameOrig, value=json.dumps(message))
+        # Block until the queue has room rather than overflowing it; BufferError
+        # means the local queue is full, so drain it and retry the same message.
+        while True:
+            try:
+                producer.produce(TOPIC, key=row.nameOrig, value=json.dumps(message))
+                break
+            except BufferError:
+                producer.poll(0.5)
         sent += 1
 
-        if sent % 10000 == 0:
-            producer.poll(0)
+        if sent % 100000 == 0:
+            producer.flush()
             print(f"sent {sent:,}")
             if rate:
-                time.sleep(10000 / rate)
+                time.sleep(100000 / rate)
 
     producer.flush()
     print(f"done, sent {sent:,} to {TOPIC}")
