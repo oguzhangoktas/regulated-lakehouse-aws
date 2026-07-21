@@ -33,6 +33,17 @@ Storage moves to AWS; compute stays local.
   continuously running streaming cluster would exceed the budget — the same
   cost-conscious framing as the mock vendor engine and the local Kafka broker.
 
+## Orchestration
+
+The stream is orchestrated as periodic micro-batches by an Airflow DAG
+(`txn_monitoring_stream`): each run consumes what has arrived since the last, in
+availableNow mode, then stops — the cost-managed alternative to an always-on cluster,
+and the model Glue Streaming and Databricks jobs use for the same reason. The DAG mirrors
+the credit-risk DAG: Airflow triggers and watches, reaches no data, and each stage is
+idempotent so a retry converges. The job names it triggers are the Glue Streaming jobs of
+the migrated deployment; with compute local today, the DAG is the orchestration pattern
+that deployment uses.
+
 ## Consequences
 - The two domains are consistent: same buckets, same catalog, same Athena. A reviewer
   sees one platform, not a cloud half and a laptop half.
