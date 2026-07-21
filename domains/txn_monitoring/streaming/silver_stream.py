@@ -64,8 +64,9 @@ def make_batch_handler(contract: Contract):
     return handle
 
 
-def run(once: bool) -> None:
-    spark = streaming_session("txn_silver_stream")
+def run(once: bool, s3: bool) -> None:
+    spark = streaming_session("txn_silver_stream", s3=s3)
+    ckpt = f"s3://oglh-artifacts-915909866528/txn-checkpoints/{SILVER}" if s3 else f"data/checkpoints/{SILVER}"
     for ns in ("silver_txn_monitoring", "quarantine_txn_monitoring"):
         spark.sql(f"CREATE NAMESPACE IF NOT EXISTS lakehouse.{ns}")
 
@@ -75,7 +76,7 @@ def run(once: bool) -> None:
     writer = (
         stream.writeStream
         .foreachBatch(make_batch_handler(contract))
-        .option("checkpointLocation", f"data/checkpoints/{SILVER}")
+        .option("checkpointLocation", ckpt)
     )
     if once:
         writer = writer.trigger(availableNow=True)
@@ -86,5 +87,7 @@ def run(once: bool) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--s3", action="store_true",
+                        help="write to S3 under the Glue catalog instead of local disk")
     args = parser.parse_args()
-    run(args.once)
+    run(args.once, args.s3)

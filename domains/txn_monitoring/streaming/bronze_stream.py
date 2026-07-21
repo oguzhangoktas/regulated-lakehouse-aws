@@ -62,8 +62,9 @@ def build_stream(spark):
     )
 
 
-def run(once: bool) -> None:
-    spark = streaming_session("txn_bronze_stream")
+def run(once: bool, s3: bool) -> None:
+    spark = streaming_session("txn_bronze_stream", s3=s3)
+    ckpt = f"s3://oglh-artifacts-915909866528/txn-checkpoints/{TABLE}" if s3 else f"data/checkpoints/{TABLE}"
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.bronze_txn_monitoring")
 
     stream = build_stream(spark)
@@ -71,13 +72,13 @@ def run(once: bool) -> None:
     writer = (
         stream.writeStream.format("iceberg")
         .outputMode("append")
-        .option("checkpointLocation", f"data/checkpoints/{TABLE}")
+        .option("checkpointLocation", ckpt)
         .toTable(TABLE)
         if not once
         else (
             stream.writeStream.format("iceberg")
             .outputMode("append")
-            .option("checkpointLocation", f"data/checkpoints/{TABLE}")
+            .option("checkpointLocation", ckpt)
             .trigger(availableNow=True)
             .toTable(TABLE)
         )
@@ -89,5 +90,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--once", action="store_true",
                         help="process what is currently in the topic, then stop")
+    parser.add_argument("--s3", action="store_true",
+                        help="write to S3 under the Glue catalog instead of local disk")
     args = parser.parse_args()
-    run(args.once)
+    run(args.once, args.s3)

@@ -54,6 +54,17 @@ locals {
     gold_credit_risk       = "gold"
     quarantine_credit_risk = "quarantine"
   }
+
+  # The transaction-monitoring domain shares the same per-layer buckets, separated by
+  # a txn_monitoring/ prefix. It includes bronze because its streaming ingestion lands
+  # raw transactions in the lakehouse, unlike credit_risk whose bronze is the external
+  # snapshot store.
+  txn_databases = {
+    bronze_txn_monitoring     = "bronze"
+    silver_txn_monitoring     = "silver"
+    gold_txn_monitoring       = "gold"
+    quarantine_txn_monitoring = "quarantine"
+  }
 }
 
 resource "aws_glue_catalog_database" "domain" {
@@ -61,6 +72,13 @@ resource "aws_glue_catalog_database" "domain" {
 
   name         = each.key
   location_uri = "s3://${aws_s3_bucket.layer[each.value].id}/credit_risk/"
+}
+
+resource "aws_glue_catalog_database" "txn_domain" {
+  for_each = local.txn_databases
+
+  name         = each.key
+  location_uri = "s3://${aws_s3_bucket.layer[each.value].id}/txn_monitoring/"
 }
 
 resource "aws_iam_role" "glue_job" {
@@ -138,6 +156,9 @@ data "aws_iam_policy_document" "glue_job" {
       ["arn:aws:glue:${var.region}:${local.suffix}:catalog"],
       [for db in aws_glue_catalog_database.domain : db.arn],
       [for db in aws_glue_catalog_database.domain :
+      "arn:aws:glue:${var.region}:${local.suffix}:table/${db.name}/*"],
+      [for db in aws_glue_catalog_database.txn_domain : db.arn],
+      [for db in aws_glue_catalog_database.txn_domain :
       "arn:aws:glue:${var.region}:${local.suffix}:table/${db.name}/*"],
     )
   }

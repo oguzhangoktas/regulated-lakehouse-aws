@@ -47,7 +47,13 @@ def run(spark: SparkSession) -> int:
 
 
 if __name__ == "__main__":
-    spark = local_session("txn_alert_job")
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--s3", action="store_true",
+                        help="write to S3 under the Glue catalog instead of local disk")
+    s3 = parser.parse_args().s3
+    spark = local_session("txn_alert_job", s3=s3)
     spark.sql("CREATE NAMESPACE IF NOT EXISTS lakehouse.gold_txn_monitoring")
     n = run(spark)
     spark.stop()
