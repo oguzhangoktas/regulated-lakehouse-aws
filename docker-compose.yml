@@ -1,4 +1,31 @@
 services:
+  # Flink cluster: a JobManager (coordinator) and a TaskManager (worker), the real
+  # deployment shape. The sweep rule runs here as a second engine reading the same
+  # Kafka topic Spark reads, to show one detection logic across two engines. In
+  # production this is a managed Flink (Kinesis Data Analytics / self-managed on K8s).
+  flink-jobmanager:
+    build: ./docker/flink
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+    volumes:
+      - ./domains/txn_monitoring/flink:/opt/flink/jobs
+
+  flink-taskmanager:
+    build: ./docker/flink
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+    volumes:
+      - ./domains/txn_monitoring/flink:/opt/flink/jobs
+
   # Kafka broker in KRaft mode (no ZooKeeper). This is the event stream transactions
   # flow through. In production this is AWS MSK, which is Kafka-compatible, so the
   # producer and consumers use the same API.
