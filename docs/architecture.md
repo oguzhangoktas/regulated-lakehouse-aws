@@ -1,8 +1,8 @@
 # Architecture
 
 A regulated financial data platform on AWS. One shared platform serves several
-risk and compliance domains; the credit-risk domain is built end to end and the
-others reuse the same foundation.
+risk and compliance domains; credit risk and transaction monitoring are both built
+end to end on the same foundation.
 
 The design mirrors how these workloads actually run in a bank, with one change:
 the bank cannot use cloud, so this rebuilds the same patterns cloud-native.
@@ -106,7 +106,8 @@ Each layer is a separate S3 bucket (ADR-006), so access can be granted per layer
 and a bad write is contained to one. One Iceberg catalog spans them: a Glue
 database per layer carries its own location, so `lakehouse.silver_credit_risk`
 resolves into the silver bucket while `lakehouse.gold_credit_risk` resolves into
-gold.
+gold. A second domain reuses the same buckets under its own prefix (see "Storage
+and compute across the two domains").
 
 ## Runtime
 
@@ -150,11 +151,87 @@ Orchestrated by the `credit_risk_rwa` DAG, backfilled across all twelve 2018
 month ends. Verified in Athena: twelve reporting dates, capital exactly 8% of
 RWA, average risk weight declining from 0.52 to 0.48 as the book improves.
 
+## The transaction-monitoring domain
+
+A second domain on the same platform, detecting suspicious transactions on a
+payment stream. Where credit risk is monthly batch around a vendor engine, this is
+streaming and owns its detection logic — the same medallion and contract
+foundation, a different shape of work.
+
+### Flow
+
+```
+source -> producer -> Kafka topic "transactions" -> Spark Structured Streaming
+          (event-time order,                        |
+           keyed by account)                        |-> bronze  (raw stream, Iceberg)
+                                                     |-> silver  (contract engine via
+                                                     |            foreachBatch; quarantine)
+                                                     |-> detection -> gold alerts
+```
+
+The producer replays the source onto Kafka in event-time order, keyed by the
+origin account so an account's transactions land on one partition and stateful
+rules see them in order. In production the topic is AWS MSK; locally it is a Kafka
+broker in Docker, the same API.
+
+### Reusing the platform in a streaming context
+
+The silver stage runs the **same contract engine** the batch domain uses, applied
+per micro-batch through `foreachBatch`. Streaming and batch share one quality path
+rather than reimplementing validation per paradigm — the clearest evidence that
+the platform layer is genuinely shared. Bronze is consumed exactly-once:
+Structured Streaming records its Kafka offsets in the checkpoint, so a restart
+resumes rather than reprocessing or dropping.
+
+### Detection, measured against ground truth
+
+The source carries a real fraud label, so every rule is measured, not assumed. The
+method (ADR-009) is measure-first: rules that do not discriminate are discarded on
+evidence.
+
+- **Whole-account sweep** is the detector. Fraud transfers the origin's entire
+  balance to the cent, which no legitimate transaction does — measured 96-99% of
+  fraud, 0% of legitimate. On the real label: 97.9% recall at 100% precision,
+  against the source's own flag rule at 0.19% recall.
+- **Watchlist screening** is the unstructured side: destinations are matched to a
+  synthetic sanctions-style list by Jaro-Winkler similarity, which tolerates the
+  spelling and transliteration variance real screening faces. Against seeded
+  near-variants: 100% recall, zero false positives.
+
+Detection is two-dimensional — a behavioural signal and a name-matching signal,
+each measured — unioned into a gold alert table tagged by rule.
+
+### Two engines, one logic
+
+Spark Structured Streaming is the backbone (ADR-011). The sweep rule is also
+expressed in Flink SQL, consuming the same Kafka topic and producing the same
+alerts, on a real Flink cluster. Flink is the industry default for low-latency
+fraud work; the rule ports cleanly and the trade-off is shown in code, not just
+asserted. The engine was chosen on the workload — Spark because the platform is
+Spark and the latency budget allows it, Flink present because the domain expects
+it.
+
+## Storage and compute across the two domains
+
+Both domains write to the **same per-layer S3 buckets and the same Glue Data
+Catalog**, separated by a domain prefix (`credit_risk/`, `txn_monitoring/`), and
+both are queryable from Athena. One platform, not a cloud half and a laptop half.
+
+The streaming compute — Kafka, Spark, Flink — runs locally, while its storage is on
+AWS (ADR-012). This is a deliberate cost boundary: a continuously running streaming
+cluster and a managed Kafka would dominate the budget, whereas the storage and
+results are genuinely on AWS and the Spark code is written to move to Glue
+Streaming unchanged. The honest line is explicit — storage and results real on AWS,
+streaming compute local by choice, code ready to migrate. Iceberg tables are
+written with S3FileIO; Structured Streaming checkpoints go through the s3a Hadoop
+filesystem.
+
 ## What each domain reuses
 
 The platform layer — ingestion, medallion storage, contracts, quality,
 observability, the Iceberg catalog, the runtime and orchestration patterns — is
 shared. A domain adds its sources, its transformations, and its contracts. Credit
-risk is the reference implementation; market risk reuses the vendor-engine
-pattern on time-series data, and transaction monitoring owns its detection logic
-end to end.
+risk is the reference implementation and transaction monitoring is built on the
+same foundation — the contract engine, the Iceberg catalog, the medallion layering
+— while owning its own streaming ingestion and detection logic. Market risk would
+reuse the vendor-engine pattern on time-series data.
