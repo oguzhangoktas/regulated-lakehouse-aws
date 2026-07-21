@@ -1,0 +1,12 @@
+name: regulated_lakehouse
+version: 1.0.0
+profile: regulated_lakehouse
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  regulated_lakehouse:
+    reporting:
+      +materialized: table

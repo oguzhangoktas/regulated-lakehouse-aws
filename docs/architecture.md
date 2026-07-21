@@ -226,6 +226,17 @@ streaming compute local by choice, code ready to migrate. Iceberg tables are
 written with S3FileIO; Structured Streaming checkpoints go through the s3a Hadoop
 filesystem.
 
+## The reporting layer
+
+Gold holds the primary outputs — RWA per exposure, one row per alert. The figures a
+risk or monitoring team reads are aggregates of these, built as a dbt reporting layer in
+a `gold_reporting` database on top of gold (ADR-013). Each report is a dbt model: a
+versioned SQL transformation with declared sources, materialized as an Athena table and
+covered by `not_null` and `unique` tests. dbt tracks the lineage from gold to each
+report, and `gold_reporting` is provisioned in Terraform like the other databases. This
+is where the Iceberg-and-Athena choice pays off — the reports are plain SQL over tables
+Athena already reads, versioned and tested rather than run ad hoc.
+
 ## What each domain reuses
 
 The platform layer — ingestion, medallion storage, contracts, quality,

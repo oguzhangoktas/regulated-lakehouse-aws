@@ -74,6 +74,11 @@ resource "aws_glue_catalog_database" "domain" {
   location_uri = "s3://${aws_s3_bucket.layer[each.value].id}/credit_risk/"
 }
 
+resource "aws_glue_catalog_database" "reporting" {
+  name         = "gold_reporting"
+  location_uri = "s3://${aws_s3_bucket.layer["gold"].id}/reporting/"
+}
+
 resource "aws_glue_catalog_database" "txn_domain" {
   for_each = local.txn_databases
 

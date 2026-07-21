@@ -14,3 +14,7 @@ crash.log
 dist/
 build/
 *.egg-info/
+dbt/profiles.yml
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/

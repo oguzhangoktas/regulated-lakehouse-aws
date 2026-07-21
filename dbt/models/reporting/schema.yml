@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: rwa_monthly_trend
+    description: "Monthly RWA, capital and average risk weight across reporting dates."
+    columns:
+      - name: reporting_date
+        tests: [not_null, unique]
+      - name: total_capital
+        tests: [not_null]
+
+  - name: capital_by_grade
+    description: "Capital and RWA by rating grade for the latest reporting date."
+    columns:
+      - name: rating_grade
+        tests: [not_null]
+
+  - name: alerts_by_rule
+    description: "Alert volume and fraud catch rate per detection rule."
+    columns:
+      - name: rule
+        tests: [not_null, unique]
+      - name: precision
+        tests: [not_null]
+
+  - name: alerts_by_type
+    description: "Alert volume and value by transaction type."
+    columns:
+      - name: type
+        tests: [not_null, unique]

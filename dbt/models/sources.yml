@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: credit_risk
+    database: awsdatacatalog
+    schema: gold_credit_risk
+    description: "Gold outputs of the credit-risk pipeline."
+    tables:
+      - name: rwa_output
+        description: "Reconciled RWA per exposure per reporting date."
+      - name: engine_input
+        description: "The scoped, contract-checked input sent to the RWA engine."
+
+  - name: txn_monitoring
+    database: awsdatacatalog
+    schema: gold_txn_monitoring
+    description: "Gold outputs of the transaction-monitoring pipeline."
+    tables:
+      - name: alerts
+        description: "Flagged transactions, one row per alert, tagged by rule."
