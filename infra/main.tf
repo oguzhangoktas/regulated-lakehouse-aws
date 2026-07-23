@@ -73,7 +73,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "layer" {
   # each replacement leaves the previous object behind as a noncurrent version:
   # invisible to a bucket listing, still billed. Versioning here is an operational
   # undo, not the audit trail - point-in-time reproduction comes from the
-  # snapshot_date partitions and Delta history. A 30 day window covers recovery
+  # snapshot_date partitions and Iceberg history. A 30 day window covers recovery
   # from a bad load without retaining copies indefinitely.
   rule {
     id     = "expire-noncurrent-versions"

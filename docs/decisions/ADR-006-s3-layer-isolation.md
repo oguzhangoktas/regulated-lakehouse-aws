@@ -22,7 +22,7 @@ expire noncurrent versions after 30 days.
   version: absent from a bucket listing, still billed. Versioning is treated as an
   operational undo rather than the audit trail, so 30 days is sufficient.
   Reproduction as of a past reporting date comes from the snapshot_date partitions and
-  Delta history, not from object versions.
+  Iceberg history, not from object versions.
 - Interrupted uploads leave billable parts that no listing shows. The 7 day rule
   bounds that exposure.
 - Four buckets is more configuration than one, and bucket names are globally unique so

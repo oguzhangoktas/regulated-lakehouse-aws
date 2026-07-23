@@ -20,7 +20,7 @@ the run happens some days after month-end (not on the 1st).
   --force: object count and total bytes in bronze were unchanged (42 objects,
   2,906,256,161 bytes before and after).
 - Point-in-time auditability comes free: "what did the regulator see for 31 March?" is
-  answerable from the snapshot partition + Delta time travel.
+  answerable from the snapshot partition + Iceberg time travel.
 - Storage grows linearly with time (full snapshot daily) — accepted deliberately; this is
   what the real system does and it is what makes the history auditable. Cost is managed
   with Parquet + partition pruning + lifecycle policies.
