@@ -151,20 +151,31 @@ Contracts protect structure. They do not protect meaning. A uniform change of sc
 invisible to every self-referential check, and no rule in the contract anchors a
 magnitude to anything outside the dataset.
 
-**Detect.** Nothing detects this today. What would:
+**Detect.** No contract will. The drift monitor does: it reduces a period to a few
+measures and compares them against the period before (ADR-015). Against the November
+book, the faulted December period reported
 
-- *Period-over-period drift.* Total exposure, total RWA and row count against the prior
-  reporting date. A book of this size does not move by orders of magnitude between month
-  ends, so a threshold on relative change catches any uniform rescaling regardless of
-  which column moved. This is the missing layer and the cheapest to add.
-- *A control total from the source.* The bank answer: the source system publishes its own
-  totals and the platform reconciles against them. The engine boundary already reconciles
-  what the vendor returns against what was sent; the ingestion boundary does not
-  reconcile what the source sent against what the source says it sent. That asymmetry is
-  the actual gap.
-- *Absolute plausibility bounds.* A maximum credible loan amount would catch this
-  particular fault, but it is brittle — it needs revisiting as the book changes, and it
-  misses a rescaling that stays inside the bound.
+```
+total_outstanding:  11,337,494,677.02 -> 1,141,589,430,564.00  (100.69x)
+total_original:     16,350,044,250.00 -> 1,646,772,077,500.00  (100.72x)
+```
+
+with `exposure_count` unbreached. That last part is the diagnosis as well as the alarm:
+the same number of exposures carrying a hundred times the money is a unit problem, not a
+volume one. The ratio is 100.69 rather than 100 because the baseline is the prior month,
+so the book's own movement is folded in — the monitor measures change between periods,
+not absolute truth.
+
+The monitor reports rather than halting, and is not wired into the jobs, so it catches
+this after publication rather than before. Run it against a period when a figure looks
+wrong, and on a schedule if the class of fault matters more than the cost of looking.
+
+**What it still does not cover.** A control total published by the source would be
+stronger: the engine boundary reconciles what the vendor returns against what was sent,
+but the ingestion boundary does not reconcile what the source sent against what the
+source says it sent. That asymmetry remains, and closing it needs the source to publish
+totals. An absolute bound on a credible loan amount would catch this particular fault but
+is brittle, and misses any rescaling that stays inside the bound.
 
 **Recover.** Correct the units at ingestion and rerun the affected dates. Because the
 jobs overwrite by partition, reprocessing restores the correct figures without cleanup.
@@ -181,11 +192,13 @@ disclosure problem rather than a pipeline one.
 | 2.02% quarantined against a 1% limit | dataset assertion | nothing |
 | Column missing upstream | the transform, weakly | nothing |
 | Column missing at the boundary | the contract, clearly | nothing |
-| Money in the wrong units | **nothing** | **everything, wrong by 100x** |
+| Money in the wrong units | no contract; the drift monitor, after the fact | **everything, wrong by 100x** |
 
 Three of the four faults were stopped by the layer built to stop them. The fourth passed
 every gate because every gate asks whether the data is internally consistent, and it was.
 
 The conclusion is not that the contracts are weak. It is that they answer one question —
 is this dataset structurally sound — and that a second question, is it plausible compared
-to what came before, has no owner in this platform yet.
+to what came before, needed a different mechanism. The contracts are gates and must be
+certain; drift is a monitor and reports. Both are needed, and neither substitutes for the
+other.
