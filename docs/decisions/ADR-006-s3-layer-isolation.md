@@ -23,6 +23,9 @@ expire noncurrent versions after 30 days.
   operational undo rather than the audit trail, so 30 days is sufficient.
   Reproduction as of a past reporting date comes from the snapshot_date partitions and
   Iceberg history, not from object versions.
+
+  Amended by ADR-016: no snapshot expiry is configured, so table history is not
+  bounded. History is retained deliberately and the cost is measured there.
 - Interrupted uploads leave billable parts that no listing shows. The 7 day rule
   bounds that exposure.
 - Four buckets is more configuration than one, and bucket names are globally unique so
