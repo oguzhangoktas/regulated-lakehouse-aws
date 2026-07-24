@@ -234,6 +234,34 @@ disclosure problem rather than a pipeline one.
 
 ---
 
+## Rerunning a date
+
+Every recovery above ends the same way: fix the cause, rerun the date. That is safe
+because a job replaces the partitions its output covers rather than appending to them,
+and the behaviour was measured rather than assumed:
+
+| Action | Rows after |
+|---|---|
+| process a date | 1,000 |
+| process the same date again | 1,000 |
+| rerun producing half as many rows | **500** |
+| process a neighbouring date | 1,500 across both |
+| rerun the first date at full size | 2,000 across both |
+
+Two things to know before you rerun something at three in the morning.
+
+**A rerun that produces fewer rows shrinks the partition.** It does not merge with what
+was there. That is correct — the source is authoritative and a partition should hold what
+the current run says it holds — but it means a partial upstream fix leaves a partial
+partition rather than the previous fuller one. If the rerun's input is incomplete, fix
+the input before rerunning rather than after.
+
+**Writing one date does not disturb another.** Partitions are replaced individually, so a
+backfill can process months in any order and a rerun of one month cannot damage the rest.
+This is what makes the credit-risk backfill safe to restart from the middle.
+
+---
+
 ## What these experiments established
 
 | Fault | Caught by | Published |
