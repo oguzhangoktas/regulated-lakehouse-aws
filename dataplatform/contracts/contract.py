@@ -111,7 +111,23 @@ class Contract:
         return passed, quarantined
 
     def assert_dataset(self, passed: DataFrame, quarantined: DataFrame) -> None:
-        """Raise if the dataset as a whole is unfit to publish."""
+        """Raise if the dataset as a whole is unfit to publish.
+
+        Arrival is checked first. Every other assertion here says that nothing is
+        wrong, and on an empty dataset nothing is wrong — no row duplicates the grain
+        and no share of rows is quarantined — so an absent input would satisfy them
+        all and publish a figure of zero. Only a contract that expects something can
+        tell an empty dataset from a clean one.
+        """
+        minimum = self.assertions.get("min_rows")
+        if minimum is not None:
+            arrived = passed.count() + quarantined.count()
+            if arrived < minimum:
+                raise ContractViolation(
+                    f"{self.name} {self.version}: {arrived} rows arrived, "
+                    f"at least {minimum} expected"
+                )
+
         if self.assertions.get("unique_grain"):
             total = passed.count()
             distinct = passed.select(*self.grain).distinct().count()

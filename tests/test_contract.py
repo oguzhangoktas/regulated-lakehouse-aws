@@ -180,3 +180,19 @@ def test_named_loads_from_package_resources():
 
     assert from_pkg.field_names == from_fs.field_names
     assert from_pkg.row_rules == from_fs.row_rules
+
+
+def test_an_absent_dataset_fails_the_assertions(spark, contract):
+    """Nothing arriving satisfies every other assertion, so arrival is its own check."""
+    passed, quarantined = contract.enforce(frame(spark).limit(0))
+
+    with pytest.raises(ContractViolation, match="0 rows arrived"):
+        contract.assert_dataset(passed, quarantined)
+
+
+def test_a_contract_without_a_minimum_accepts_an_absent_dataset(spark):
+    """A streaming batch is legitimately empty, so the check is declared where it applies."""
+    streaming = Contract.named("txn_monitoring_transaction")
+    empty = spark.createDataFrame([], "name_orig string, step int, kafka_offset long")
+
+    streaming.assert_dataset(empty, empty)

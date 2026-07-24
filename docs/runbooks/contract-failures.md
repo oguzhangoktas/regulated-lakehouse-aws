@@ -86,6 +86,56 @@ can be explained; a quietly short one cannot.
 
 ---
 
+## "N rows arrived, at least M expected"
+
+```
+ContractViolation: credit_risk_exposure_input 1.0.0: 0 rows arrived, at least 1 expected
+```
+
+**What it means.** There is no data upstream for the reporting date. Nothing published,
+and the gold table still holds whatever the last successful run wrote.
+
+**Diagnose.** Establish how far up the absence goes:
+
+```sql
+select snapshot_date, count(*)
+from silver_credit_risk.exposure
+where snapshot_date >= date '<reporting_date>' - interval '3' month
+group by 1
+order by 1
+```
+
+A gap in silver sends you to bronze. If bronze holds the partition and silver does not,
+the silver job ran and wrote nothing, which is a different fault with the same symptom.
+
+Usual causes: the source did not deliver; the silver job was skipped, or ran for a
+different date; a backfill was triggered for a date the chain has not processed yet.
+
+**Recover.** Process the missing upstream date, then rerun this one. Nothing needs
+undoing first — the halt happened before any write.
+
+**Why this check exists.** It was added because without it the chain completed
+successfully on an empty input. Traced stage by stage against a date with no data, the
+input contract passed, the output contract passed, reconciliation passed, and the run
+reported zero exposures and an RWA of 0.00bn as a success.
+
+Every other assertion is a statement that nothing is wrong: no row duplicates the grain,
+no excessive share is quarantined, what was sent equals what returned. On an empty
+dataset all of them are true, because there is nothing there to be wrong. Only an
+assertion that something is expected can tell an absent dataset from a clean one.
+
+That distinction matters more here than the arithmetic faults. A wrong figure is at least
+a figure, and looks odd next to last month. A missing figure reported as zero looks like a
+bank that held no risk, and nothing downstream is built to question it.
+
+**What this check does not cover.** It is declared on the credit contracts and not on the
+streaming one, because a micro-batch with no new messages is legitimate. And the credit
+chain still has an asymmetry: silver has no dataset assertions of its own, so a bronze
+partition that exists but is empty passes through silver quietly and is caught two layers
+later at the engine boundary rather than where it entered.
+
+---
+
 ## A column is missing
 
 This surfaces in two different places depending on where the column disappeared, and the
@@ -190,6 +240,7 @@ disclosure problem rather than a pipeline one.
 |---|---|---|
 | Duplicated grain | dataset assertion | nothing |
 | 2.02% quarantined against a 1% limit | dataset assertion | nothing |
+| No data for the reporting date | nothing, until an arrival check was added | **a successful run reporting 0.00bn** |
 | Column missing upstream | the transform, weakly | nothing |
 | Column missing at the boundary | the contract, clearly | nothing |
 | Money in the wrong units | no contract; the drift monitor, after the fact | **everything, wrong by 100x** |

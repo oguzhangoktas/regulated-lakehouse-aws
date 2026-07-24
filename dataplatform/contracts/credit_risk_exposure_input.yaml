@@ -115,3 +115,4 @@ row_rules:
 dataset_assertions:
   unique_grain: true
   max_quarantine_pct: 1.0
+  min_rows: 1
